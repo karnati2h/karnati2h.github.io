@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Projects on Hemanth Karnati</title>
+    <link>/project/</link>
+    <description>Recent content in Projects on Hemanth Karnati</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-US</language><atom:link href="/project/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Project 1 </title>
+      <link>/project/project1/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>/project/project1/</guid>
+      <description># The 1st dataset I chose documents the amount of people who # were tested on each day in Chicago from 3/01/2020 to # 10/07/2020 and which day of the week it was. The second # dataset documents the number of cases, deaths, and # hospitalizations on each day across the same date range. # Both datasets were acquired by surveying medical providers # for which of their clients were tested, hospitalized, # diagnosed positive, and the resulting deaths.</description>
+    </item>
+    
+    <item>
+      <title>Project 2 Hemanth Karnati</title>
+      <link>/project/project2/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>/project/project2/</guid>
+      <description>library(tidyverse) library(lmtest) library(sandwich) covid &amp;lt;- read_csv(&amp;quot;covid2.csv&amp;quot;) # I will be using the covid dataset for this project. The dataset documants the status of covid #patients from March 1st to October 7th. This dataset has 221 observations and includes the #variables Day, Date, Cases, Deaths, hospitalizations, and Death rate. The day and date variables #are categorical, and provide the day of the week and date of the each recording. The other #variables are numeric; cases, hospitalizations, and deaths are variables which measure the number #of cases, deaths and hospitalizations on each day.</description>
+    </item>
+    
+    <item>
+      <title>Projects</title>
+      <link>/project/projects/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>/project/projects/</guid>
+      <description> Check out some of my coding projects below:
+ Wrangling &amp;amp; Exploratory Data Analysis
+ Modeling, Inference, Prediction
+  -- </description>
+    </item>
+    
+    <item>
+      <title>Resume</title>
+      <link>/project/resume/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>/project/resume/</guid>
+      <description>    </description>
+    </item>
+    
+  </channel>
+</rss>

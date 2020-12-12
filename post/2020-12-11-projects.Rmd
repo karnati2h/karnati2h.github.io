@@ -1,0 +1,48 @@
+---
+title: python functions
+author: Hemanth Karnati
+date: '2020-12-12'
+slug: pyfunc
+categories:
+  - code
+tags:
+  - python
+  - r
+description: 'I will demonstrate various functions in python use the reticulate package to show interaction between python and r'
+---
+![](https://www.sciencemag.org/sites/default/files/styles/inline__450w__no_aspect/public/DNA_1280p.jpg?itok=_4Q9tQCL)
+first, lets load the reticulate and tidyverse packages
+```{r}
+library(reticulate)
+library(tidyverse)
+```
+
+
+lets import numpy create arbitrary data and run some stats.
+```{python}
+
+import numpy as np
+array=np.random.rand(5)
+ar2 = array+5
+print(array)
+print(array.mean())
+print(array[3])
+print(ar2-array)
+print(np.corrcoef(array, ar2))
+```
+pass this array into r and run some summary statistics
+```{r}
+mean(py$array)
+length(py$array)
+summary(py$array)
+```
+regular expressions can help you parse strings for characters you are looking for and perform actions on them
+```{python}
+import re
+string1 = "we want willy wonkas winning winks"
+print(re.findall(r"w", string1))
+print(re.sub(r"w","l",string1))
+print(re.match(r"w",string1) )
+```
+There are still more functions to be explored, but these are the basics.
+

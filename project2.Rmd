@@ -1,0 +1,239 @@
+---
+title: "Project 2 Hemanth Karnati"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+hook_output = knit_hooks$get('output')
+knit_hooks$set(output = function(x, options) {
+  # this hook is used only when the linewidth option is not NULL
+  if (!is.null(n <- options$linewidth)) {
+    x = knitr:::split_lines(x)
+    # any lines wider than n should be wrapped
+    if (any(nchar(x) > n)) x = strwrap(x, width = n)
+    x = paste(x, collapse = '\n')
+  }
+  hook_output(x, options)
+})
+knitr::opts_chunk$set(echo = TRUE, eval = TRUE,fig.align="center",warning=FALSE,message=FALSE,fig.width=8, fig.height=5, linewidth=60)
+options(tibble.width = 100,width = 100)
+```
+
+```{r}
+
+library(tidyverse)
+library(lmtest)
+library(sandwich)
+covid <- read_csv("covid2.csv")
+
+# I will be using the covid dataset for this project. The dataset documants the status of covid 
+#patients from March 1st to October 7th. This dataset has 221 observations and includes the 
+#variables Day, Date, Cases, Deaths, hospitalizations, and Death rate. The day and date variables
+#are categorical, and provide the day of the week and date of the each recording. The other 
+#variables are numeric; cases, hospitalizations, and deaths are variables which measure the number
+#of cases, deaths and hospitalizations on each day. Death rate measures the proportion of cases
+#which resulted in death.
+
+```
+
+```{r}
+
+man1<-manova(cbind(`People Tested`,Cases,Deaths,Hospitalizations,`death rate`)~Day, data=covid)
+summary(man1)
+
+summary.aov(man1)
+
+covid%>%na.omit%>%group_by(Day)%>%summarize(mean(`People Tested`),mean(Cases), mean(`death rate`))
+
+pairwise.t.test(covid$`People Tested`, covid$Day, p.adj="none")
+pairwise.t.test(covid$Cases, covid$Day, p.adj="none")
+pairwise.t.test(covid$`death rate`, covid$Day, p.adj="none")
+5.055e-07 + 1.466e-06 + 2.88e-15 + 2.287e-12
+#I have performed  1 MANOVA, 5 ANOVAs, and 3 sets of 21 t-tests, resulting in 69 total tests.
+#The overall probability of type 1 error is 1.971502e-06. 
+0.05/69
+#The boniferroni-corrected significance level is 0.0007462687. Based on this, significant
+#differences were shown between sunday and all other days except saturday for death rate and cases,
+#while being significant between saturday and sunday and the other days for people tested.
+library(rstatix)
+covid1<-na.omit(covid)
+group <- covid1$Day 
+DVs <- covid %>% na.omit %>% select(`People Tested`,Cases,`death rate`)
+
+#Test multivariate normality for each group (null: assumption met)
+sapply(split(DVs,group), mshapiro_test)
+
+#If any p<.05, stop (assumption violated). If not, test homogeneity of covariance matrices
+
+#Box's M test (null: assumption met)
+box_m(DVs, group)
+
+#Optionally, view covariance matrices for each group
+lapply(split(DVs,group), cov)
+
+# MANOVA assumptions are not likely to be met since the number of testings changed over the course 
+#of the year and not as much within each week on a regular basis.
+```
+
+```{r} 
+mean(covid$Cases[covid$Day=="Monday"])-mean(covid$Cases[covid$Day=="Sunday"])
+#Ho: the mean difference in cases found between sundays and mondays is 0.
+#Ha: the mean difference in cases found between sundays and mondays is not 0.
+rand_dist<-vector()
+
+for(i in 1:5000){
+  new<-data.frame(time=sample(covid$Cases),condition=covid$Day)
+  rand_dist[i]<-mean(new$time[new$condition=="Sunday"])-
+    mean(new$time[new$condition=="Monday"])}
+
+mean(rand_dist>274.9375 | rand_dist < -274.9375)
+
+#The p-value was 0, so we reject the null hypothesis; there is a true mean difference between sunday and monday.
+{hist(rand_dist,main="amount of samples with difference as high as truth",ylab="count"); abline(v = c(-274.9375, 274.9375),col="red")}
+#The bounds are outside the scope of the histogram, showing how significant our result is.
+```
+
+```{r}
+covid$Ps <- covid$`People Tested`-mean(covid$`People Tested`, na.rm=T)
+covid$Cs <- covid$Cases-mean(covid$Cases, na.rm=T)
+reg <- lm(Hospitalizations~Ps*Cs, data = covid)
+summary(reg)
+#For each person tested, when cases are constant, hospitalizations decrease by 2.356e-02. For each
+#Case recorded, for the same number of people tested, hospitalizations increase by 1.858e-01. When 
+#cases and people tested increase by 1, the number of hospitalizations decreases by 5.639e-05 in
+#addition to the previous effects.
+library(interactions)
+interact_plot(reg, pred = Ps, modx = Cs)
+resids<-reg$residuals
+fitvals<-reg$fitted.values
+ggplot()+geom_point(aes(fitvals,resids))+geom_hline(yintercept=0, color='red')
+shapiro.test(resids)
+#The regression is homoskedastic but not linear or normal. 
+coeftest(reg, vcov=vcovHC(reg))
+#After recomputation, both predictors and their interaction have significant effects on 
+#Hospitalizations(p<2.2e-16). No SEs changed significantly.
+summary(reg)$r.squared
+#People tested and cases account for 89.18% of variation in hospitalizations.
+
+```
+
+```{r}
+
+samp_distn<-replicate(5000, {
+  boot_dat <- sample_frac(covid, replace=T)
+  fit <- lm(Hospitalizations~Ps*Cs, data=boot_dat) 
+  coef(fit) 
+  }) 
+  
+samp_distn %>% t %>% as.data.frame %>% summarize_all(sd)
+#The SEs are on the same scale as those for the standard and robust models, but are smaller.
+```
+
+```{r}
+covid <- covid%>% na.omit()
+covid$var <- ifelse(covid$Day=="Sunday",1,0)
+fit<-glm(var~Cases+`People Tested`,data=covid,family="binomial")
+summary(fit)
+# On Sundays, there is e^0.0029034 lower odds of people being tested and e^0.0006111 lower odds of
+#a case being recorded.
+prob<-predict(fit,type="response")
+pred<-ifelse(prob>0.5,1,0)
+table(prediction=pred, truth=covid$var)%>%addmargins
+(176+3)/221
+3/32
+176/189
+3/16
+library(plotROC)
+ROCplot3<-ggplot(covid)+geom_roc(aes(d=var,m=Cases*`People Tested`), n.cuts=0) 
+calc_auc(ROCplot3)
+#The accuracy is 0.8099548, sensitivity is 0.09375, specificity is 0.9312169, precision is 0.1875,
+#and AUC is 0.1275628	
+odds<-function(p)p/(1-p)
+p<-seq(0,1,by=.05)
+logit<-function(p)log(odds(p))
+covid$logit<-predict(fit)
+covid2<-covid %>% mutate(var=factor(var,levels=c(1,0)))
+covid2 %>% ggplot(aes(logit, fill=var))+geom_density(alpha=.3)
+ROCplot3                                          
+calc_auc(ROCplot3)
+#The AUC is 0.1275628, which indicates that the model is performing very poorly for overall prediction.
+```
+
+```{r}
+library(glmnet)
+covid2<-covid[-1][-1]
+qfit <- glm(var~., data = covid2, family = binomial)
+class_diag<-function(probs,truth){
+  tab<-table(factor(probs>.5,levels=c("FALSE","TRUE")),truth)
+  acc=sum(diag(tab))/sum(tab)
+  sens=tab[2,2]/colSums(tab)[2]
+  spec=tab[1,1]/colSums(tab)[1]
+  ppv=tab[2,2]/rowSums(tab)[2]
+  f1=2*(sens*ppv)/(sens+ppv)
+  
+  if(is.numeric(truth)==FALSE & is.logical(truth)==FALSE){
+    truth<-as.numeric(truth)-1}
+  
+  #CALCULATE EXACT AUC
+  ord<-order(probs, decreasing=TRUE)
+  probs <- probs[ord]; truth <- truth[ord]
+  
+  TPR=cumsum(truth)/max(1,sum(truth)) 
+  FPR=cumsum(!truth)/max(1,sum(!truth))
+  
+  dup<-c(probs[-1]>=probs[-length(probs)], FALSE)
+  TPR<-c(0,TPR[!dup],1); FPR<-c(0,FPR[!dup],1)
+  
+  n <- length(TPR)
+  auc<- sum( ((TPR[-1]+TPR[-n])/2) * (FPR[-1]-FPR[-n]) )
+  
+  data.frame(acc,sens,spec,ppv,f1,auc)
+}
+prob <- predict(qfit, type = "response")
+class_diag(prob, covid2$var)
+#The accuracy is 0.8571429, sensitivity is 0.34375	, specificity is 0.962963, Precision is 0.6111111, and auc is 0.9231151. This indicates that the model is a very good predictor of y.
+set.seed(1234)
+k=10
+
+data <- covid2[sample(nrow(covid2)), ]
+folds <- cut(seq(1:nrow(covid2)), breaks = k, labels = F)
+diags <- NULL
+for (i in 1:k) {
+  train <- data[folds != i, ]
+  test <- data[folds == i, ]
+  truth <- test$var
+  fit <- glm(var ~ -1, data = train, family = "binomial")
+  probs <- predict(fit, newdata = test, type = "response")
+  diags <- rbind(diags, class_diag(probs, truth))
+}
+summarize_all(diags, mean)
+# The auc is significantly lower in this model, so this is a poor predictor of y.
+library(glmnet)
+var<- as.matrix(covid2$var)
+cov_preds <- model.matrix(var ~ ., data = covid2)[,-1]
+cross <- cv.glmnet(cov_preds, var, family = "binomial")
+lasso_fit <- glmnet(cov_preds, var, family = "binomial", lambda = cross$lamda.1se)
+coef(lasso_fit)
+#The most consistently significant predictors of y were people tested, cases, and death rate, so
+#I will use these in my 10-fold cv. These were the same varibles which were significant in the 
+#MANOVA.
+set.seed(1234)
+k=10
+
+data <- covid2 %>% sample_frac
+folds <- ntile(1:nrow(covid2),n=10) 
+diags <- NULL
+for (i in 1:k) {
+  train <- data[folds != i, ]
+  test <- data[folds == i, ]
+  truth <- test$var
+  fit3 <- glm(var ~ Cases*Hospitalizations*`People Tested`, data = train, family = "binomial")
+  probs3 <- predict(fit3, newdata = test, type = "response")
+  diags <- rbind(diags, class_diag(probs3, truth))
+}
+diags%>%summarize_all(mean)
+#The AUC is slightly lower using LASSO variables than when using all variables.
+
+```
+
